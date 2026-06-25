@@ -3,10 +3,46 @@ let activeBasket = null;
 let searchCache = [];
 let searchTimeout = null;
 
+/* ================= IMAGE CACHE ================= */
+const imageCache = {};
+
+/* ================= LOGO RESOLVER (FIX SPX ISSUE) ================= */
+function getImage(token) {
+  if (!token) return "https://via.placeholder.com/28";
+
+  const address = token.address;
+  const symbol = token.symbol;
+
+  // 1. cached result
+  if (address && imageCache[address]) return imageCache[address];
+
+  let url = null;
+
+  // 2. DexScreener (best available from search)
+  if (token.logoURI) url = token.logoURI;
+  if (!url && token.imageUrl) url = token.imageUrl;
+
+  // 3. TrustWallet (IMPORTANT FIX - address based)
+  if (!url && address) {
+    url = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${address}/logo.png`;
+  }
+
+  // 4. CoinGecko fallback (symbol-based, weak but helps)
+  if (!url && symbol) {
+    url = `https://assets.coingecko.com/coins/images/1/small/${symbol}.png`;
+  }
+
+  // 5. final fallback
+  if (!url) url = "https://via.placeholder.com/28";
+
+  if (address) imageCache[address] = url;
+
+  return url;
+}
+
 /* ================= INIT ================= */
 window.addEventListener("DOMContentLoaded", () => {
 
-  /* enable/disable create button */
   const input = document.getElementById("newBasketName");
   const btn = document.getElementById("createBtn");
 
@@ -16,50 +52,34 @@ window.addEventListener("DOMContentLoaded", () => {
 
   btn.disabled = true;
 
-  /* live search */
   const searchInput = document.getElementById("searchCoin");
 
   searchInput.addEventListener("input", () => {
     const q = searchInput.value.trim();
 
-    if (!q) {
-      closeSearch();
-      return;
-    }
+    if (!q) return closeSearch();
 
     clearTimeout(searchTimeout);
 
-    searchTimeout = setTimeout(() => {
-      searchCoin(q);
-    }, 300);
+    searchTimeout = setTimeout(() => searchCoin(q), 300);
   });
 
-  /* click outside closes search */
   document.addEventListener("click", (e) => {
     const wrapper = document.getElementById("searchWrapper");
-
     const results = document.getElementById("searchResults");
 
-    if (
-      results.style.display === "block" &&
-      !wrapper.contains(e.target)
-    ) {
+    if (results.style.display === "block" && !wrapper.contains(e.target)) {
       closeSearch();
     }
   });
 });
 
-/* ================= SEARCH OPEN ================= */
-function openSearch() {
-  document.getElementById("searchResults").style.display = "block";
-  document.getElementById("closeBtn").style.display = "block";
-}
-
 /* ================= SEARCH ================= */
 async function searchCoin(q) {
   const box = document.getElementById("searchResults");
 
-  openSearch();
+  box.style.display = "block";
+  document.getElementById("closeBtn").style.display = "block";
 
   box.innerHTML = "<p style='padding:10px'>Searching...</p>";
 
@@ -94,14 +114,34 @@ async function searchCoin(q) {
   box.innerHTML = "";
 
   pairs.forEach((p, i) => {
+
+    const token = {
+      symbol: p.baseToken.symbol,
+      address: p.baseToken.address,
+      logoURI: p.baseToken.logoURI,
+      imageUrl: p.info?.imageUrl
+    };
+
+    const img = getImage(token);
+
     const row = document.createElement("div");
     row.className = "resultRow";
 
     row.innerHTML = `
-      <div>
-        <b>${p.baseToken.symbol}</b>
-        | ${p.chainId}
-        | MC: $${Math.round(p.marketCap || 0).toLocaleString()}
+      <div style="display:flex;align-items:center;gap:10px">
+
+        <img 
+          src="${img}"
+          loading="lazy"
+          style="width:28px;height:28px;border-radius:50%;object-fit:cover"
+        />
+
+        <div>
+          <b>${p.baseToken.symbol}</b>
+          | ${p.chainId}
+          | MC: $${Math.round(p.marketCap || 0).toLocaleString()}
+        </div>
+
       </div>
 
       <button class="addBtn" onclick="addCoin(${i})">
@@ -129,16 +169,22 @@ function addCoin(i) {
 
   baskets[activeBasket].coins.push({
     symbol: p.baseToken.symbol,
-    pairAddress: p.pairAddress,
+    address: p.baseToken.address,
     chainId: p.chainId,
-    marketCap: p.marketCap ?? 0
+    marketCap: p.marketCap ?? 0,
+    image: getImage({
+      symbol: p.baseToken.symbol,
+      address: p.baseToken.address,
+      logoURI: p.baseToken.logoURI,
+      imageUrl: p.info?.imageUrl
+    })
   });
 
   closeSearch();
   render();
 }
 
-/* ================= BASKET MANAGEMENT ================= */
+/* ================= BASKETS ================= */
 function createBasket() {
   const name = document.getElementById("newBasketName").value;
   if (!name) return;
@@ -173,10 +219,6 @@ function deleteBasket() {
 /* ================= SAVE ================= */
 function saveAll() {
   localStorage.setItem("baskets", JSON.stringify(baskets));
-
-  // IMPORTANT FIX:
-  // DO NOT save activeBasket anymore (this caused your startup bug)
-
   alert("Saved!");
 }
 
@@ -188,7 +230,6 @@ function render() {
 
   list.innerHTML = "";
 
-  // 🚨 CRITICAL FIX: hide everything if no active basket
   if (!activeBasket || !baskets[activeBasket]) {
     section.style.display = "none";
     return;
@@ -207,14 +248,30 @@ function render() {
   const weight = (100 / coins.length).toFixed(2);
 
   coins.forEach((c, i) => {
+
     const li = document.createElement("li");
 
     li.innerHTML = `
-      <b>${c.symbol}</b>
-      | ${c.chainId}
-      | MC: $${Math.round(c.marketCap || 0).toLocaleString()}
-      | Weight: ${weight}%
-      <button onclick="baskets[activeBasket].coins.splice(${i},1);render()">X</button>
+      <div style="display:flex;align-items:center;gap:10px">
+
+        <img 
+          src="${c.image}"
+          loading="lazy"
+          style="width:28px;height:28px;border-radius:50%;object-fit:cover"
+        />
+
+        <div>
+          <b>${c.symbol}</b>
+          | ${c.chainId}
+          | MC: $${Math.round(c.marketCap || 0).toLocaleString()}
+          | Weight: ${weight}%
+        </div>
+
+      </div>
+
+      <button onclick="baskets[activeBasket].coins.splice(${i},1);render()">
+        X
+      </button>
     `;
 
     list.appendChild(li);
@@ -250,7 +307,6 @@ window.onload = function () {
 
   if (saved) baskets = JSON.parse(saved);
 
-  // 🚨 FIX: always start with NO active basket
   activeBasket = null;
 
   updateSelector();
