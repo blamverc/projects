@@ -3,7 +3,6 @@
 <head>
   <title>Basket Builder</title>
 
-  <!-- Makes it scale correctly on iPhone -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
@@ -15,14 +14,13 @@
     }
 
     h1 {
-      font-size: 22px;
       text-align: center;
-      margin-bottom: 10px;
+      font-size: 22px;
     }
 
     h3 {
-      margin-top: 20px;
       font-size: 16px;
+      margin-top: 16px;
     }
 
     input, select {
@@ -30,8 +28,8 @@
       padding: 12px;
       margin: 6px 0;
       font-size: 16px;
-      border: 1px solid #ccc;
       border-radius: 8px;
+      border: 1px solid #ccc;
       box-sizing: border-box;
     }
 
@@ -40,27 +38,82 @@
       padding: 12px;
       margin: 6px 0;
       font-size: 16px;
-      border: none;
       border-radius: 8px;
+      border: none;
       background: #111;
       color: white;
-      cursor: pointer;
     }
 
-    button:active {
-      transform: scale(0.98);
+    button:disabled {
+      background: #ccc !important;
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
-    #searchResults div {
+    /* ================= SEARCH OVERLAY ================= */
+    #searchWrapper {
+      position: relative;
+    }
+
+    #searchResults {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+
+      max-height: 260px;
+      overflow-y: auto;
+
       background: white;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 8px;
       border: 1px solid #ddd;
+      border-radius: 10px;
+
+      padding: 6px;
+
+      display: none;
+      z-index: 999;
     }
 
-    ul {
-      padding: 0;
+    .resultRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+
+    .resultRow:last-child {
+      border-bottom: none;
+    }
+
+    .addBtn {
+      width: auto;
+      padding: 6px 10px;
+      font-size: 12px;
+      background: #111;
+      color: white;
+      border-radius: 6px;
+    }
+
+    #closeBtn {
+      display: none;
+      position: absolute;
+      right: 8px;
+      top: 8px;
+
+      width: auto;
+      padding: 4px 8px;
+      font-size: 12px;
+
+      background: #444;
+      color: white;
+      z-index: 1000;
+    }
+
+    /* ================= BASKET ================= */
+    #basketSection {
+      display: none; /* IMPORTANT: hidden by default */
     }
 
     li {
@@ -70,20 +123,12 @@
       margin: 8px 0;
       border-radius: 8px;
       border: 1px solid #ddd;
-      font-size: 14px;
     }
 
     #summary {
-      margin-top: 15px;
-      font-weight: bold;
       text-align: center;
-    }
-
-    .small-btn {
-      width: auto;
-      padding: 6px 10px;
-      font-size: 12px;
-      margin-left: 8px;
+      font-weight: bold;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -96,7 +141,9 @@
   <h3>Baskets</h3>
 
   <input id="newBasketName" placeholder="New basket name" />
-  <button onclick="createBasket()">Create Basket</button>
+  <button id="createBtn" onclick="createBasket()" disabled>
+    Create Basket
+  </button>
 
   <select id="basketSelector" onchange="switchBasket()"></select>
 
@@ -108,19 +155,25 @@
   <!-- ================= SEARCH ================= -->
   <h3>Search Coin</h3>
 
-  <input id="searchCoin" placeholder="Search token (bonk, pepe...)" />
-  <button onclick="searchCoin()">Search</button>
+  <div id="searchWrapper">
 
-  <div id="searchResults"></div>
+    <input id="searchCoin" placeholder="Search token..." />
+
+    <button id="closeBtn" onclick="closeSearch()">Close</button>
+
+    <div id="searchResults"></div>
+
+  </div>
 
   <hr>
 
-  <!-- ================= BASKET ================= -->
+  <!-- ================= BASKET (HIDDEN UNTIL ACTIVE) ================= -->
   <h3>Basket</h3>
 
-  <ul id="coinList"></ul>
-
-  <p id="summary"></p>
+  <div id="basketSection">
+    <ul id="coinList"></ul>
+    <p id="summary"></p>
+  </div>
 
   <script src="script.js"></script>
 </body>
