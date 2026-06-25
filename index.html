@@ -1,13 +1,98 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Basket Builder (Equal Weight)</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Basket Builder</title>
+
+  <!-- Makes it scale correctly on iPhone -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 12px;
+      background: #f6f6f6;
+    }
+
+    h1 {
+      font-size: 22px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: #111;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    #searchResults div {
+      background: white;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    ul {
+      padding: 0;
+    }
+
+    li {
+      list-style: none;
+      background: white;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+
+    #summary {
+      margin-top: 15px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .small-btn {
+      width: auto;
+      padding: 6px 10px;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+  </style>
 </head>
+
 <body>
 
   <h1>Basket Builder</h1>
 
+  <!-- ================= BASKETS ================= -->
   <h3>Baskets</h3>
 
   <input id="newBasketName" placeholder="New basket name" />
@@ -16,24 +101,26 @@
   <select id="basketSelector" onchange="switchBasket()"></select>
 
   <button onclick="deleteBasket()">Delete Basket</button>
-  <button onclick="saveAll()">Save All</button>
+  <button onclick="saveAll()">Save</button>
 
   <hr>
 
+  <!-- ================= SEARCH ================= -->
   <h3>Search Coin</h3>
 
-  <input id="searchCoin" placeholder="Search token (e.g. bonk)" />
+  <input id="searchCoin" placeholder="Search token (bonk, pepe...)" />
   <button onclick="searchCoin()">Search</button>
 
   <div id="searchResults"></div>
 
   <hr>
 
+  <!-- ================= BASKET ================= -->
   <h3>Basket</h3>
 
   <ul id="coinList"></ul>
 
-  <p id="totalWeight"></p>
+  <p id="summary"></p>
 
   <script src="script.js"></script>
 </body>
