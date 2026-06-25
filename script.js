@@ -1,21 +1,74 @@
 let baskets = {};
 let activeBasket = null;
 let searchCache = [];
+let searchTimeout = null;
+
+/* ================= INIT ================= */
+window.addEventListener("DOMContentLoaded", () => {
+
+  /* enable/disable create button */
+  const input = document.getElementById("newBasketName");
+  const btn = document.getElementById("createBtn");
+
+  input.addEventListener("input", () => {
+    btn.disabled = input.value.trim().length === 0;
+  });
+
+  btn.disabled = true;
+
+  /* live search */
+  const searchInput = document.getElementById("searchCoin");
+
+  searchInput.addEventListener("input", () => {
+    const q = searchInput.value.trim();
+
+    if (!q) {
+      closeSearch();
+      return;
+    }
+
+    clearTimeout(searchTimeout);
+
+    searchTimeout = setTimeout(() => {
+      searchCoin(q);
+    }, 300);
+  });
+
+  /* click outside closes search */
+  document.addEventListener("click", (e) => {
+    const wrapper = document.getElementById("searchWrapper");
+
+    const results = document.getElementById("searchResults");
+
+    if (
+      results.style.display === "block" &&
+      !wrapper.contains(e.target)
+    ) {
+      closeSearch();
+    }
+  });
+});
+
+/* ================= SEARCH OPEN ================= */
+function openSearch() {
+  document.getElementById("searchResults").style.display = "block";
+  document.getElementById("closeBtn").style.display = "block";
+}
 
 /* ================= SEARCH ================= */
-async function searchCoin() {
-  const q = document.getElementById("searchCoin").value;
-  if (!q) return;
+async function searchCoin(q) {
+  const box = document.getElementById("searchResults");
+
+  openSearch();
+
+  box.innerHTML = "<p style='padding:10px'>Searching...</p>";
 
   const data = await fetch(
     `https://api.dexscreener.com/latest/dex/search/?q=${q}`
   ).then(r => r.json());
 
-  const box = document.getElementById("searchResults");
-  box.innerHTML = "";
-
   if (!data.pairs?.length) {
-    box.innerHTML = "<p>No results</p>";
+    box.innerHTML = "<p style='padding:10px'>No results</p>";
     return;
   }
 
@@ -38,30 +91,39 @@ async function searchCoin() {
 
   searchCache = pairs;
 
+  box.innerHTML = "";
+
   pairs.forEach((p, i) => {
-    const mc = p.marketCap ?? 0;
+    const row = document.createElement("div");
+    row.className = "resultRow";
 
-    const div = document.createElement("div");
-    div.style.border = "1px solid #ccc";
-    div.style.padding = "8px";
-    div.style.margin = "5px 0";
+    row.innerHTML = `
+      <div>
+        <b>${p.baseToken.symbol}</b>
+        | ${p.chainId}
+        | MC: $${Math.round(p.marketCap || 0).toLocaleString()}
+      </div>
 
-    div.innerHTML = `
-      <b>${p.baseToken.symbol}</b>
-      | ${p.chainId}
-      | $${Number(p.priceUsd || 0).toFixed(6)}
-      | MC: $${Math.round(mc).toLocaleString()}
-      | Liquidity: $${Math.round(p.liquidity?.usd || 0)}
-      <button onclick="addCoin(${i})">Add</button>
+      <button class="addBtn" onclick="addCoin(${i})">
+        Add to Basket
+      </button>
     `;
 
-    box.appendChild(div);
+    box.appendChild(row);
   });
+}
+
+/* ================= CLOSE SEARCH ================= */
+function closeSearch() {
+  document.getElementById("searchResults").innerHTML = "";
+  document.getElementById("searchResults").style.display = "none";
+  document.getElementById("closeBtn").style.display = "none";
+  document.getElementById("searchCoin").value = "";
 }
 
 /* ================= ADD COIN ================= */
 function addCoin(i) {
-  if (!activeBasket) return alert("Create a basket first");
+  if (!activeBasket) return alert("Select a basket first");
 
   const p = searchCache[i];
 
@@ -72,33 +134,37 @@ function addCoin(i) {
     marketCap: p.marketCap ?? 0
   });
 
-  document.getElementById("searchResults").innerHTML = "";
-  document.getElementById("searchCoin").value = "";
-
+  closeSearch();
   render();
 }
 
-/* ================= BASKETS ================= */
+/* ================= BASKET MANAGEMENT ================= */
 function createBasket() {
   const name = document.getElementById("newBasketName").value;
   if (!name) return;
 
   baskets[name] = { coins: [] };
-  activeBasket = name;
+  activeBasket = null;
+
+  document.getElementById("newBasketName").value = "";
 
   updateSelector();
   render();
 }
 
 function switchBasket() {
-  activeBasket = document.getElementById("basketSelector").value;
+  const val = document.getElementById("basketSelector").value;
+  if (!val) return;
+
+  activeBasket = val;
   render();
 }
 
 function deleteBasket() {
+  if (!activeBasket) return;
+
   delete baskets[activeBasket];
-  const keys = Object.keys(baskets);
-  activeBasket = keys[0] || null;
+  activeBasket = null;
 
   updateSelector();
   render();
@@ -107,101 +173,85 @@ function deleteBasket() {
 /* ================= SAVE ================= */
 function saveAll() {
   localStorage.setItem("baskets", JSON.stringify(baskets));
-  localStorage.setItem("activeBasket", activeBasket);
+
+  // IMPORTANT FIX:
+  // DO NOT save activeBasket anymore (this caused your startup bug)
+
   alert("Saved!");
 }
 
-/* ================= PRICE ================= */
-async function getPrice(pairAddress, chainId) {
-  try {
-    const res = await fetch(
-      `https://api.dexscreener.com/latest/dex/pairs/${chainId}/${pairAddress}`
-    );
-
-    const d = await res.json();
-    return Number(d.pair?.priceUsd || 0);
-  } catch {
-    return 0;
-  }
-}
-
 /* ================= RENDER ================= */
-async function render() {
+function render() {
+  const section = document.getElementById("basketSection");
   const list = document.getElementById("coinList");
+  const summary = document.getElementById("summary");
+
   list.innerHTML = "";
 
+  // 🚨 CRITICAL FIX: hide everything if no active basket
   if (!activeBasket || !baskets[activeBasket]) {
-    document.getElementById("totalWeight").innerText = "No basket";
+    section.style.display = "none";
     return;
   }
+
+  section.style.display = "block";
 
   const coins = baskets[activeBasket].coins;
 
   if (!coins.length) {
     list.innerHTML = "<i>Basket is empty</i>";
-    document.getElementById("totalWeight").innerText = "0 coins | $0";
+    summary.innerText = "0 coins";
     return;
   }
 
-  const weightPerCoin = 100 / coins.length;
+  const weight = (100 / coins.length).toFixed(2);
 
-  let totalValue = 0;
-
-  for (let i = 0; i < coins.length; i++) {
-    const c = coins[i];
-
-    const price = await getPrice(c.pairAddress, c.chainId);
-
-    const value = price * weightPerCoin;
-    totalValue += value;
-
+  coins.forEach((c, i) => {
     const li = document.createElement("li");
 
     li.innerHTML = `
       <b>${c.symbol}</b>
-      | MC: $${Math.round(c.marketCap || 0).toLocaleString()}
       | ${c.chainId}
-      | Price: $${price.toFixed(6)}
-      | Weight: ${weightPerCoin.toFixed(2)}%
-      | Value: $${value.toFixed(2)}
+      | MC: $${Math.round(c.marketCap || 0).toLocaleString()}
+      | Weight: ${weight}%
       <button onclick="baskets[activeBasket].coins.splice(${i},1);render()">X</button>
     `;
 
     list.appendChild(li);
-  }
+  });
 
-  document.getElementById("totalWeight").innerText =
-    `Equal Weight Portfolio | Total Value: $${totalValue.toFixed(2)}`;
+  summary.innerText =
+    `Coins: ${coins.length} | Equal Weight`;
 }
 
-/* ================= SELECT ================= */
+/* ================= DROPDOWN ================= */
 function updateSelector() {
   const sel = document.getElementById("basketSelector");
   sel.innerHTML = "";
 
-  Object.keys(baskets).forEach(n => {
+  const placeholder = document.createElement("option");
+  placeholder.textContent = "Select basket...";
+  placeholder.value = "";
+  placeholder.selected = true;
+  placeholder.disabled = true;
+  sel.appendChild(placeholder);
+
+  Object.keys(baskets).forEach(name => {
     const opt = document.createElement("option");
-    opt.value = n;
-    opt.textContent = n;
+    opt.value = name;
+    opt.textContent = name;
     sel.appendChild(opt);
   });
-
-  if (activeBasket) sel.value = activeBasket;
 }
 
-/* ================= INIT ================= */
+/* ================= INIT LOAD ================= */
 window.onload = function () {
   const saved = localStorage.getItem("baskets");
-  const savedActive = localStorage.getItem("activeBasket");
 
   if (saved) baskets = JSON.parse(saved);
 
-  const keys = Object.keys(baskets);
-
-  activeBasket =
-    savedActive && baskets[savedActive]
-      ? savedActive
-      : keys[0] || null;
+  // 🚨 FIX: always start with NO active basket
+  activeBasket = null;
 
   updateSelector();
   render();
