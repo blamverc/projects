@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Basket Builder (Equal Weight)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>Basket Builder</h1>
+
+  <h3>Baskets</h3>
+
+  <input id="newBasketName" placeholder="New basket name" />
+  <button onclick="createBasket()">Create Basket</button>
+
+  <select id="basketSelector" onchange="switchBasket()"></select>
+
+  <button onclick="deleteBasket()">Delete Basket</button>
+  <button onclick="saveAll()">Save All</button>
+
+  <hr>
+
+  <h3>Search Coin</h3>
+
+  <input id="searchCoin" placeholder="Search token (e.g. bonk)" />
+  <button onclick="searchCoin()">Search</button>
+
+  <div id="searchResults"></div>
+
+  <hr>
+
+  <h3>Basket</h3>
+
+  <ul id="coinList"></ul>
+
+  <p id="totalWeight"></p>
+
+  <script src="script.js"></script>
+</body>
+</html>
